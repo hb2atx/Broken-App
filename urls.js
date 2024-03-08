@@ -1,61 +1,37 @@
+
 const fs = require('fs');
-const https = require('https');
+const axios = require('axios');
+const path = require('path');
 const { URL } = require('url');
+const filename = process.argv[2];
 
-function downloadUrl(url, outputFileName) {
-  return new Promise((resolve, reject) => {
-    https.get(url, (response) => {
-      let data = '';
-
-      response.on('data', (chunk) => {
-        data += chunk;
-      });
-
-      response.on('end', () => {
-        fs.writeFile(outputFileName, data, (error) => {
-          if (error) {
-            console.error(`Couldn't write to ${outputFileName}: ${error.message}`);
-            reject(error);
-          } else {
-            console.log(`Wrote to ${outputFileName}`);
-            resolve();
-          }
-        });
-      });
-    }).on('error', (error) => {
-      console.error(`Couldn't download ${url}: ${error.message}`);
-      reject(error);
-    });
-  });
-}
-
-function processUrlsFile(fileName) {
-  try {
-    const urls = fs.readFileSync(fileName, 'utf-8').split('\n').filter(Boolean);
-
-    if (!urls.length) {
-      console.error('No URLs found in the file');
-      process.exit(1);
-    }
-
-    urls.forEach(async (url) => {
-      const outputFileName = new URL(url).hostname;
-      await downloadUrl(url, outputFileName);
-    });
-  } catch (error) {
-    console.error(`Couldn't read the file ${fileName}: ${error.message}`);
+if (!filename) {
+    console.error("Please provide a filename as an argument.");
     process.exit(1);
-  }
 }
-
-const fileName = process.argv[2];
-
-if (!fileName) {
-  console.error('Please provide a file name as an argument');
-  process.exit(1);
-}
-
-processUrlsFile(fileName);
-
-// run script with this command
-// node urls.js urls.txt
+fs.readFile(filename, "utf-8", async (err, data) => {
+    if (err) {
+        console.error(err);
+        process.exit(1);
+    }
+    const urls = data.trim().split("\n");
+    for (let url of urls) {
+        try {
+            const parsedUrl = new URL(url);
+            const hostname = parsedUrl.hostname;
+            const response = await axios.get(parsedUrl);
+            const html = response.data
+            const outputFileName = `${hostname}.txt`
+            const outPath = path.join(__dirname, outputFileName);
+            fs.writeFile(outPath, html, "utf-8", function(err) {
+                if (err) {
+                    console.error(`Error writing to ${outputFilename}:, ${err}`);
+                } else {
+                    console.log(`Saved ${url} to ${outputFileName}`);
+                }
+            })
+        } catch (err) {
+            console.error(`Error downloading ${url}:, ${err.message}`);
+        }
+    }
+});
